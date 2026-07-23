@@ -244,7 +244,39 @@ bool httpGetStream(const char* url, WiFiClientSecure& client, HTTPClient& https,
 
 // Bithumb spot price (Korean exchange, KRW = kimchi-premium-inclusive).
 // closing_price = last trade, fluctate_rate_24H = 24h change %. Both are JSON strings.
-void fetchBithumbOne(const char* sym, Ticker& t) {
+#if defined(ESP32)
+// Fill t.spark[] with the most recent closes from Bithumb candlesticks for a
+// sparkline. The endpoint returns 200 candles (~15KB); we stream-parse with a
+// filter that keeps only the candle array, then take the last SPARK_N closes.
+// ESP32 only -- the Ultra's heap is too tight to do this alongside TLS.
+void fetchBithumbCandles(const char* sym, Ticker& t) {
+  WiFiClientSecure client;
+  HTTPClient https;
+  // 30m candles -> ~8h of recent history across SPARK_N points.
+  String url = String("https://api.bithumb.com/public/candlestick/") + sym + "_KRW/30m";
+  if (!httpGetStream(url.c_str(), client, https, false)) return;
+
+  JsonDocument filter;
+  filter["data"] = true;               // keep only the candle array, drop the rest
+  JsonDocument doc;
+  DeserializationError err =
+      deserializeJson(doc, https.getStream(), DeserializationOption::Filter(filter));
+  https.end();
+  if (err) { Serial.printf("bithumb candle json: %s\n", err.c_str()); return; }
+
+  JsonArray data = doc["data"];
+  if (data.isNull()) return;
+  int n = data.size();
+  int start = (n > SPARK_N) ? n - SPARK_N : 0;   // keep the most recent points
+  t.sparkN = 0;
+  for (int i = start; i < n && t.sparkN < SPARK_N; i++) {
+    float c = atof(data[i][2] | "0");  // candle = [ts, open, close, high, low, vol]
+    if (c > 0) t.spark[t.sparkN++] = c;
+  }
+}
+#endif
+
+void fetchBithumbOne(const char* sym, Ticker& t, bool withSpark = false) {
   WiFiClientSecure client;
   HTTPClient https;
   String url = String("https://api.bithumb.com/public/ticker/") + sym + "_KRW";
@@ -263,6 +295,12 @@ void fetchBithumbOne(const char* sym, Ticker& t) {
   t.price     = price;
   t.changePct = rate;
   t.valid     = true;
+
+#if defined(ESP32)
+  if (withSpark) fetchBithumbCandles(sym, t);   // add an intraday sparkline (Pro only)
+#else
+  (void)withSpark;
+#endif
 }
 
 
@@ -364,9 +402,9 @@ void fetchPiStats() {
 
 void fetchAll() {
   Serial.println("Fetching...");
-  fetchBithumbOne("BTC",  coins[0]);      // 코인시장 (Bithumb spot)
-  fetchBithumbOne("ETH",  coins[1]);
-  fetchBithumbOne("KAIA", coins[2]);
+  fetchBithumbOne("BTC",  coins[0], true);  // 코인시장 (Bithumb spot) + sparkline
+  fetchBithumbOne("ETH",  coins[1], true);
+  fetchBithumbOne("KAIA", coins[2], true);
   fetchYahooOne("%5EKS11",   stocks[0], true);  // 주식시장 (Yahoo) + sparkline
   fetchYahooOne("005930.KS", stocks[1], true);
   fetchYahooOne("000660.KS", stocks[2], true);
