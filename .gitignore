@@ -1,0 +1,14 @@
+# PlatformIO build output
+.pio/
+/firmware*.bin
+
+# OMC / tooling session state
+.omc/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store

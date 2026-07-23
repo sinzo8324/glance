@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glance UI Preview</title>
+<style>
+  :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { margin: 0; min-height: 100vh; background: #10141d; color: #e8edf5; display: grid; place-items: center; }
+  main { width: min(100vw - 32px, 920px); padding: 28px 0; }
+  .top { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+  h1 { font-size: 20px; line-height: 1.2; margin: 0; font-weight: 650; }
+  p { margin: 6px 0 0; color: #9aa4b5; font-size: 13px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  button { appearance: none; border: 1px solid #2a3140; background: #171d28; color: #e8edf5; border-radius: 7px; padding: 8px 11px; font-size: 13px; cursor: pointer; }
+  button.active { background: #26364c; border-color: #4e7abd; }
+  .stage { display: grid; grid-template-columns: minmax(280px, 1fr) 240px; gap: 28px; align-items: center; }
+  canvas { width: 240px; height: 240px; image-rendering: pixelated; border-radius: 22px; box-shadow: 0 24px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.07); background: #000000; }
+  .notes { color: #a7b0bf; font-size: 13px; line-height: 1.6; }
+  code { color: #d8e6ff; background: #171d28; padding: 2px 5px; border-radius: 4px; }
+  @media (max-width: 680px) { .top, .stage { display: block; } .controls { justify-content: flex-start; margin-top: 14px; } canvas { display: block; margin: 22px auto 0; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <h1>Glance UI Preview — GeekMagic SmallTV Ultra</h1>
+      <p>240x240 canvas mock for the current firmware layout.</p>
+    </div>
+    <div class="controls">
+      <button data-view="crypto" class="active">Crypto</button>
+      <button data-view="dollar">Dollar</button>
+      <button data-view="stock">Stock</button>
+      <button data-view="pi">Pi Monitor</button>
+      <button data-view="clock">Night Clock</button>
+    </div>
+  </div>
+  <div class="stage">
+    <div class="notes">
+      <p><code>src/main.cpp</code>의 좌표/색상 변경을 빠르게 보기 위한 근사 프리뷰입니다.</p>
+      <p>실기기와 다른 점: TFT_eSPI smooth font, PROGMEM 한글 비트맵, ST7789 색감/밝기는 브라우저에서 완전히 재현되지 않습니다.</p>
+      <p>레이아웃 밀도, 겹침, footer/header 균형을 보는 용도입니다.</p>
+    </div>
+    <canvas id="screen" width="240" height="240"></canvas>
+  </div>
+</main>
+<script>
+const cvs = document.getElementById('screen');
+const ctx = cvs.getContext('2d');
+ctx.imageSmoothingEnabled = true;
+
+const C = {
+  bg: '#000000', text: '#eef0ea', dim: '#8994a6', label: '#8c94a4', sep: '#101218',
+  track: '#0a0c10', up: '#f04137', down: '#468cff', green: '#28af82', orange: '#f7931a', blue: '#3c82f6'
+};
+const titles = {crypto: '코인시장', dollar: '달러시장', stock: '주식시장'};
+const pages = {crypto: 0, dollar: 1, stock: 2};
+const accents = [C.orange, C.green, C.blue, C.blue];
+const rows = {
+  crypto: [
+    {label:'BTC', logo:'₿', price:'96,234,000', ch: 1.82, spark:[1,2,2.4,1.8,2.6,3.1,2.9,3.6]},
+    {label:'ETH', logo:'◆', price:'2,704,000', ch: -0.44, spark:[3,2.7,2.8,2.3,2.1,2.2,1.9,1.7]},
+    {label:'KAIA', logo:'K', price:'54.21', ch: 3.12, spark:[1,1.3,1.2,1.7,1.8,2.0,2.4,2.2]},
+  ],
+  dollar: [
+    {label:'달러/원', price:'1,382.30', ch: -0.12},
+    {label:'USDT', price:'1,399.00', ch: 0.08},
+    {label:'USDC', price:'1,397.50', ch: 0.04},
+  ],
+  stock: [
+    {label:'코스피', price:'3,245.82', ch: 0.66, spark:[2,2.1,1.9,2.4,2.8,2.6,2.9,3.2]},
+    {label:'삼성전자', price:'88,400', ch: -1.12, spark:[3,2.8,2.6,2.9,2.2,2.1,1.8,1.7]},
+    {label:'SK하이닉스', price:'282,000', ch: 2.48, spark:[1.4,1.5,1.9,1.7,2.2,2.6,2.8,3.0]},
+  ]
+};
+
+function font(size, weight=500) { ctx.font = `${weight} ${size}px Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`; }
+function clear() { ctx.fillStyle = C.bg; ctx.fillRect(0,0,240,240); }
+function text(s,x,y,size=14,color=C.text,align='left',base='top',weight=500) { font(size, weight); ctx.fillStyle=color; ctx.textAlign=align; ctx.textBaseline=base; ctx.fillText(s,x,y); }
+function line(x1,y1,x2,y2,c=C.sep,w=1) { ctx.strokeStyle=c; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+function roundRect(x,y,w,h,r,c) { ctx.fillStyle=c; ctx.beginPath(); ctx.roundRect(x,y,w,h,r); ctx.fill(); }
+function circle(x,y,r,c) { ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+function bar(x,y,w,h,ratio,c) { roundRect(x,y,w,h,h/2,C.track); roundRect(x,y,Math.max(1,w*Math.max(0,Math.min(1,ratio))),h,h/2,c); }
+function spark(x,y,w,h,pts,c) { if (!pts) return; const mn=Math.min(...pts), mx=Math.max(...pts), rg=mx-mn||1; ctx.strokeStyle=c; ctx.lineWidth=1; ctx.beginPath(); pts.forEach((p,i)=>{ const px=x+w*i/(pts.length-1), py=y+h-(p-mn)/rg*h; if(i)ctx.lineTo(px,py); else ctx.moveTo(px,py); }); ctx.stroke(); }
+function weather(x,y) { circle(x+10,y+9,5,'#ffc800'); for(let a=0;a<360;a+=45){const r=a*Math.PI/180; line(x+10+Math.cos(r)*7,y+9+Math.sin(r)*7,x+10+Math.cos(r)*10,y+9+Math.sin(r)*10,'#ffc800',1);} }
+
+function drawMarket(kind) {
+  clear();
+  const page = pages[kind], acc = accents[page];
+  text(titles[kind], 8, 6, 17, C.text, 'left', 'top', 700);
+  text('192.168.0.42', 232, 9, 12, C.dim, 'right');
+  ctx.fillStyle=acc; ctx.fillRect(8,32,224,2);
+  [45,96,147].forEach((y,i)=>drawRow(y, rows[kind][i]));
+  line(8,87,232,87,C.sep); line(8,138,232,138,C.sep);
+  drawDots(page); drawFooter(true);
+}
+function drawRow(y,r) {
+  const chColor = r.ch >= 0 ? C.up : C.down;
+  let lx=8;
+  if (r.logo) { circle(lx+10,y+13,10, r.logo==='₿'?C.orange:r.logo==='◆'?'#627eea':'#5ed0a9'); text(r.logo,lx+10,y+14,12,'#fff','center','middle',800); lx+=26; }
+  text(r.label,lx,y+2,15,C.label,'left','top',650);
+  text(r.price,232,y-7,26,C.text,'right','top',650);
+  text(Math.abs(r.ch).toFixed(2)+'%',232,y+22,12,chColor,'right');
+  const tw = ctx.measureText(Math.abs(r.ch).toFixed(2)+'%').width;
+  ctx.fillStyle=chColor; ctx.beginPath();
+  const tr=232-tw-5, tl=tr-7, yt=y+25, yb=y+34;
+  if (r.ch>=0) { ctx.moveTo(tl,yb); ctx.lineTo(tr,yb); ctx.lineTo((tl+tr)/2,yt); }
+  else { ctx.moveTo(tl,yt); ctx.lineTo(tr,yt); ctx.lineTo((tl+tr)/2,yb); }
+  ctx.closePath(); ctx.fill();
+  spark(8,y+29,140,9,r.spark,chColor);
+}
+function drawDots(page) { const cy=204, sp=14, sx=120-((4-1)*sp)/2; for(let i=0;i<4;i++) circle(sx+i*sp,cy,i===page?3:1,i===page?accents[page]:C.sep); }
+function drawFooter(ip) { text('07/15 Wed',6,225,20,C.dim,'left','middle',700); text('14:28',136,225,20,C.dim,'center','middle',700); weather(172,213); text('27C',232,225,20,C.dim,'right','middle',700); }
+
+function piIcon(kind,x,y,c){
+  ctx.strokeStyle=c; ctx.lineWidth=1.4;
+  if(kind===0){
+    ctx.strokeRect(x+5,y+5,13,13); ctx.strokeRect(x+9,y+9,5,5);
+    for(let i=0;i<3;i++){ const o=6+i*4; line(x+o,y+1,x+o,y+4,c); line(x+o,y+18,x+o,y+21,c); line(x+1,y+o,x+4,y+o,c); line(x+18,y+o,x+21,y+o,c); }
+  } else if(kind===1){
+    ctx.strokeRect(x+2,y+6,19,10); for(let i=0;i<4;i++) line(x+5+i*4,y+9,x+5+i*4,y+13,c);
+  } else if(kind===2){
+    [6,12,17].forEach(yy=>{ ctx.beginPath(); ctx.ellipse(x+11,y+yy,8,3,0,0,Math.PI*2); ctx.stroke(); });
+  } else {
+    ctx.strokeRect(x+9,y+3,5,12); circle(x+11,y+18,3,c);
+  }
+}
+function piRow(cy,icon,val,max,ratio,deg){
+  piIcon(icon,8,cy-11,C.label);
+  text(val,deg?86:92,cy,19,C.text,'right','middle',650);
+  if(deg) circle(90,cy-8,2,C.text);
+  const color = ratio < .7 ? '#35c759' : ratio < .9 ? '#ff9f0a' : '#ff453a';
+  bar(102,cy-6,92,12,ratio,color);
+  text(max,deg?230:234,cy,12,C.dim,'right','middle',600);
+  if(deg) circle(233,cy-5,1,C.dim);
+}
+function drawPi() {
+  clear();
+  text('raspberrypi',8,7,19,C.text,'left','top',650);
+  roundRect(196,8,36,18,9,'#123123'); text('OK',214,17,12,'#4ad680','center','middle',700);
+  line(8,34,232,34,C.sep);
+  piRow(58,0,'37%','100%',.37,false);
+  piRow(91,1,'1.8G','3.8G',.46,false);
+  piRow(124,2,'31G','46G',.68,false);
+  piRow(157,3,'52','85',.61,true);
+  text('TV 192.168.0.42',120,209,12,C.dim,'center','middle'); text('PI 192.168.0.20',120,224,12,C.dim,'center','middle');
+}
+
+function drawClock(){ clear(); ctx.strokeStyle=C.track; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(120,112,98,0,Math.PI*2); ctx.stroke(); ctx.strokeStyle='#5a96ff'; ctx.beginPath(); ctx.arc(120,112,98,-Math.PI/2,Math.PI*.85); ctx.stroke(); text('14:28',120,92,52,C.text,'center','middle',650); text('07/15  Wed',120,148,13,C.dim,'center','middle'); weather(84,169); text('27C',124,176,12,C.dim,'left'); }
+
+function setView(v){ document.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.view===v)); if(v==='pi') drawPi(); else if(v==='clock') drawClock(); else drawMarket(v); }
+document.querySelectorAll('button').forEach(b=>b.onclick=()=>setView(b.dataset.view));
+setView('crypto');
+</script>
+</body>
+</html>
