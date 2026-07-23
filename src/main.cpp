@@ -50,6 +50,9 @@ const uint16_t PORTAL_TIMEOUT_S = 180;      // give up the setup portal after 3 
 
 const uint8_t  ROTATION      = 0;          // 0..3 - change if screen is upside down
 const bool     INVERT_COLORS = true;       // most 1.54" IPS ST7789 panels need this
+#if defined(ESP32)
+const int      Y_SHIFT       = 6;          // Pro panel sits a few px low; nudge content up
+#endif
 
 // Footer: date / weekday / time (NTP) + current temperature (Open-Meteo, no key).
 const float    LAT      = 37.5665;   // your location (default: Seoul)
@@ -1130,6 +1133,11 @@ void setup() {
   tft.init();
   tft.setRotation(ROTATION);
   tft.invertDisplay(INVERT_COLORS);
+#if defined(ESP32)
+  // The Pro's panel shows content a few px low (top margin, bottom clipped);
+  // a negative-datum viewport shifts everything up by Y_SHIFT to recenter it.
+  tft.setViewport(0, -Y_SHIFT, TFT_WIDTH, TFT_HEIGHT + Y_SHIFT, true);
+#endif
   tft.fillScreen(COL_BG);
 
   // Backlight is ACTIVE-LOW: PWM duty is inverted, so higher duty = dimmer.
