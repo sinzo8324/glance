@@ -51,9 +51,7 @@ const uint16_t PORTAL_TIMEOUT_S = 180;      // give up the setup portal after 3 
 
 const uint8_t  ROTATION      = 0;          // 0..3 - change if screen is upside down
 const bool     INVERT_COLORS = true;       // most 1.54" IPS ST7789 panels need this
-#if defined(ESP32)
-const int      Y_SHIFT       = 6;          // Pro panel sits a few px low; nudge content up
-#endif
+const int      Y_SHIFT       = 6;          // nudge Ultra and Pro content up to center it
 
 // Footer: date / weekday / time (NTP) + current temperature (Open-Meteo, no key).
 const float    LAT      = 37.5665;   // your location (default: Seoul)
@@ -275,6 +273,18 @@ void fetchBithumbCandles(const char* sym, Ticker& t) {
     if (c > 0) t.spark[t.sparkN++] = c;
   }
 }
+#else
+// The Ultra cannot safely parse the extra candle payload while TLS is active.
+// Build its chart from prices already fetched by the regular ticker request,
+// adding no network traffic or large temporary JSON document.
+void appendSparkSample(Ticker& t, float price) {
+  if (t.sparkN < SPARK_N) {
+    t.spark[t.sparkN++] = price;
+    return;
+  }
+  for (int i = 1; i < SPARK_N; i++) t.spark[i - 1] = t.spark[i];
+  t.spark[SPARK_N - 1] = price;
+}
 #endif
 
 void fetchBithumbOne(const char* sym, Ticker& t, bool withSpark = false) {
@@ -300,7 +310,7 @@ void fetchBithumbOne(const char* sym, Ticker& t, bool withSpark = false) {
 #if defined(ESP32)
   if (withSpark) fetchBithumbCandles(sym, t);   // add an intraday sparkline (Pro only)
 #else
-  (void)withSpark;
+  if (withSpark) appendSparkSample(t, price);   // Ultra: rolling samples, no extra request
 #endif
 }
 
@@ -1172,11 +1182,9 @@ void setup() {
   tft.init();
   tft.setRotation(ROTATION);
   tft.invertDisplay(INVERT_COLORS);
-#if defined(ESP32)
-  // The Pro's panel shows content a few px low (top margin, bottom clipped);
-  // a negative-datum viewport shifts everything up by Y_SHIFT to recenter it.
+  // Both panels show content a few px low; use a negative-datum viewport to
+  // shift the full UI upward without changing every drawing coordinate.
   tft.setViewport(0, -Y_SHIFT, TFT_WIDTH, TFT_HEIGHT + Y_SHIFT, true);
-#endif
   tft.fillScreen(COL_BG);
 
   // Backlight is ACTIVE-LOW: PWM duty is inverted, so higher duty = dimmer.
