@@ -1,6 +1,6 @@
 # Glance
 
-Glance는 GeekMagic SmallTV Ultra(ESP8266)에 암호화폐, 원/달러 환율, 국내 주식 시세와 Raspberry Pi 상태를 표시하는 커스텀 펌웨어입니다.
+Glance는 GeekMagic SmallTV Ultra(ESP8266)와 SmallTV Pro(ESP32)에 암호화폐, 원/달러 환율, 국내 주식 시세와 Raspberry Pi 상태를 표시하는 커스텀 펌웨어입니다.
 
 ## 주요 기능
 
@@ -10,8 +10,7 @@ Glance는 GeekMagic SmallTV Ultra(ESP8266)에 암호화폐, 원/달러 환율, �
 - 야간 시계, 밝기 및 화면 전환 주기 설정
 - Raspberry Pi CPU, 메모리, 디스크, 온도 모니터링
 - 웹 브라우저를 통한 설정 및 OTA 업데이트
-
-> 이 펌웨어는 ESP8266 기반 **SmallTV Ultra**용입니다. ESP32 기반 SmallTV Pro에는 사용할 수 없습니다.
+- SmallTV Pro: 정전식 터치 메뉴, 비동기 데이터 갱신, 암호화폐 스파크라인
 
 ## 프로젝트 안내
 
@@ -26,20 +25,30 @@ GeekMagic을 비롯한 제품명, 회사명, 암호화폐 명칭과 로고 및 �
 [PlatformIO](https://platformio.org/install)를 설치한 뒤 프로젝트 폴더에서 실행합니다.
 
 ```bash
-pio run
+# SmallTV Ultra
+pio run -e esp12e
+
+# SmallTV Pro
+pio run -e esp32-pro
 ```
 
-완성된 펌웨어는 `.pio/build/esp12e/firmware.bin`에 생성됩니다.
+완성된 펌웨어는 각각 `.pio/build/esp12e/firmware.bin`과 `.pio/build/esp32-pro/firmware.bin`에 생성됩니다. 기종이 다른 펌웨어를 업로드하지 않도록 주의하세요.
 
 ## 설치
 
 기존 SmallTV 웹 화면의 **Firmware Upgrade** 메뉴에서 생성된 `firmware.bin`을 업로드합니다. 최초 설치 전에 원본 펌웨어를 백업하는 것을 권장합니다.
 
-USB-UART로 설치하려면 ESP8266의 TX, RX, GND를 연결하고 부팅할 때 GPIO0을 GND로 내려 업로드 모드로 진입한 후 다음 명령을 실행합니다.
+USB-UART로 설치하려면 대상 기기의 TX, RX, GND를 연결하고 부팅할 때 GPIO0을 GND로 내려 업로드 모드로 진입한 후 기종에 맞는 명령을 실행합니다.
 
 ```bash
-pio run -t upload
+# SmallTV Ultra
+pio run -e esp12e -t upload
+
+# SmallTV Pro
+pio run -e esp32-pro -t upload
 ```
+
+SmallTV Pro의 확인된 화면 및 터치 핀 정보는 `platformio.ini`에 기록되어 있습니다.
 
 ## 처음 실행
 
@@ -68,6 +77,13 @@ python3 pi_agent.py
 ```
 
 SmallTV 설정 화면에서 모드를 `Pi monitor`로 바꾸고 Raspberry Pi의 IP 주소와 포트 `8080`을 입력합니다.
+
+## SmallTV Pro 터치 조작
+
+- 짧게 터치: Market 모드에서 다음 페이지
+- 길게 터치: 모드 선택 메뉴 열기 또는 닫기
+- 메뉴에서 짧게 터치: 다음 항목
+- 메뉴에서 두 번 터치: 선택 확정
 
 ## 데이터 출처
 
