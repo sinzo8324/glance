@@ -275,6 +275,18 @@ void fetchBithumbCandles(const char* sym, Ticker& t) {
     if (c > 0) t.spark[t.sparkN++] = c;
   }
 }
+#else
+// The Ultra cannot safely parse the extra candle payload while TLS is active.
+// Build its chart from prices already fetched by the regular ticker request,
+// adding no network traffic or large temporary JSON document.
+void appendSparkSample(Ticker& t, float price) {
+  if (t.sparkN < SPARK_N) {
+    t.spark[t.sparkN++] = price;
+    return;
+  }
+  for (int i = 1; i < SPARK_N; i++) t.spark[i - 1] = t.spark[i];
+  t.spark[SPARK_N - 1] = price;
+}
 #endif
 
 void fetchBithumbOne(const char* sym, Ticker& t, bool withSpark = false) {
@@ -300,7 +312,7 @@ void fetchBithumbOne(const char* sym, Ticker& t, bool withSpark = false) {
 #if defined(ESP32)
   if (withSpark) fetchBithumbCandles(sym, t);   // add an intraday sparkline (Pro only)
 #else
-  (void)withSpark;
+  if (withSpark) appendSparkSample(t, price);   // Ultra: rolling samples, no extra request
 #endif
 }
 

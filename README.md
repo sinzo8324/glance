@@ -10,7 +10,8 @@ Glance는 GeekMagic SmallTV Ultra(ESP8266)와 SmallTV Pro(ESP32)에 암호화폐
 - 야간 시계, 밝기 및 화면 전환 주기 설정
 - Raspberry Pi CPU, 메모리, 디스크, 온도 모니터링
 - 웹 브라우저를 통한 설정 및 OTA 업데이트
-- SmallTV Pro: 정전식 터치 메뉴, 비동기 데이터 갱신, 암호화폐 스파크라인
+- 암호화폐와 국내 시장의 미니 가격 그래프
+- SmallTV Pro: 정전식 터치 메뉴와 비동기 데이터 갱신
 
 ## 프로젝트 안내
 
