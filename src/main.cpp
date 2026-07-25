@@ -1243,7 +1243,7 @@ void loop() {
   if (now - lastFetch >= fetchInterval && !g_fetching) { lastFetch = now; g_fetchReq = true; }
   if (g_fetchDone) {
     g_fetchDone = false;
-    if (!clockMode) {
+    if (!clockMode && cfg.mode < 2) {
       if (cfg.mode == 0) drawPage(forceFullRedraw);
       else if (cfg.mode == 1) drawPiScreen(forceFullRedraw);
       forceFullRedraw = false;
@@ -1253,9 +1253,9 @@ void loop() {
   if (now - lastFetch >= fetchInterval) {   // Ultra: single core, blocking fetch
     fetchCurrent();
     lastFetch = now;
-    if (!clockMode) {
+    if (!clockMode && cfg.mode < 2) {
       if (cfg.mode == 0) drawPage(forceFullRedraw);
-      else drawPiScreen(forceFullRedraw);
+      else if (cfg.mode == 1) drawPiScreen(forceFullRedraw);
       forceFullRedraw = false;
     }
   }
