@@ -1021,9 +1021,13 @@ void startWebServer() {
 }
 
 void fetchCurrent() {
-  if (cfg.mode == 0)      fetchAll();
+  // The night clock is an overlay, so cfg.mode still points at the screen
+  // underneath it. In particular, Pi Monitor never fetches weather itself.
+  // Prefer the data needed by the visible clock while the overlay is active.
+  if (clockMode)          fetchWeather();
+  else if (cfg.mode == 0) fetchAll();
   else if (cfg.mode == 1) fetchPiStats();
-  else                    fetchWeather();   // clock mode only needs weather
+  else                    fetchWeather();
 }
 void renderCurrent() {
   if (cfg.mode == 0)      drawPage();
@@ -1251,7 +1255,9 @@ void loop() {
   if (now - lastFetch >= fetchInterval && !g_fetching) { lastFetch = now; g_fetchReq = true; }
   if (g_fetchDone) {
     g_fetchDone = false;
-    if (!clockMode && cfg.mode < 2) {
+    if (clockMode) {
+      drawClockScreen();
+    } else if (cfg.mode < 2) {
       if (cfg.mode == 0) drawPage(forceFullRedraw);
       else if (cfg.mode == 1) drawPiScreen(forceFullRedraw);
       forceFullRedraw = false;
@@ -1261,7 +1267,9 @@ void loop() {
   if (now - lastFetch >= fetchInterval) {   // Ultra: single core, blocking fetch
     fetchCurrent();
     lastFetch = now;
-    if (!clockMode && cfg.mode < 2) {
+    if (clockMode) {
+      drawClockScreen();
+    } else if (cfg.mode < 2) {
       if (cfg.mode == 0) drawPage(forceFullRedraw);
       else if (cfg.mode == 1) drawPiScreen(forceFullRedraw);
       forceFullRedraw = false;
@@ -1285,7 +1293,12 @@ void loop() {
   if (wantClock != clockMode) {           // mode just changed
     clockMode = wantClock;
     lastClockMin = -1;
-    if (clockMode) drawClockScreen();
+    if (clockMode) {
+      drawClockScreen();
+      // Refresh weather immediately. This is essential when the underlying
+      // mode is Pi Monitor, which may not have populated weather since boot.
+      lastFetch = now - fetchInterval;
+    }
     else { renderCurrent(); lastPage = now; }
   }
 
