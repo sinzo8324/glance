@@ -709,6 +709,14 @@ void drawPiRow(int cy, int icon, const char* val, const char* mx, float ratio, b
 }
 
 void drawPiScreen(bool fullRedraw = true) {
+  // A connection-state change swaps the centered connecting message for the
+  // metric rows (or vice versa). Their pixels extend beyond the small regions
+  // cleared during a normal data refresh, so redraw the whole screen once at
+  // the transition to prevent stale text from showing through the graphs.
+  static bool lastValid = false;
+  if (g_pi.valid != lastValid) fullRedraw = true;
+  lastValid = g_pi.valid;
+
   tft.startWrite();
   if (fullRedraw) tft.fillScreen(COL_BG);
   else tft.fillRect(0, 0, 240, 35, COL_BG);
