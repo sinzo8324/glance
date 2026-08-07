@@ -58,6 +58,16 @@ SmallTV Pro의 확인된 화면 및 터치 핀 정보는 `platformio.ini`에 기
 3. 연결 후 화면에 표시되는 IP 주소를 확인합니다.
 4. 브라우저에서 `http://기기-IP/`를 열어 밝기, 야간 모드와 갱신 주기를 설정합니다.
 
+## 기기 정보 확인
+
+같은 네트워크에서 `GET /info`를 호출하면 OTA 전에 기기 모델을 확인할 수 있습니다.
+
+```bash
+curl http://기기-IP/info
+```
+
+Ultra는 `SmallTV Ultra`와 `ESP8266`, Pro는 `SmallTV Pro`와 `ESP32`를 JSON으로 반환합니다. Wi-Fi 및 OTA 인증 정보는 포함하지 않습니다.
+
 ## OTA 업데이트
 
 `src/main.cpp`의 `OTA_PASS` 기본값을 반드시 원하는 비밀번호로 변경한 뒤 빌드하세요. 이후 `http://기기-IP/update`에서 사용자명 `admin`과 설정한 비밀번호로 로그인하여 새 `firmware.bin`을 업로드할 수 있습니다.
