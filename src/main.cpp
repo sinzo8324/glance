@@ -49,6 +49,14 @@ const char* OTA_USER    = "admin";          // login for the /update page
 const char* OTA_PASS    = "smalltv";         // change this
 const uint16_t PORTAL_TIMEOUT_S = 180;      // give up the setup portal after 3 min
 
+#if defined(ESP32)
+const char* DEVICE_MODEL = "SmallTV Pro";
+const char* CHIP_FAMILY  = "ESP32";
+#else
+const char* DEVICE_MODEL = "SmallTV Ultra";
+const char* CHIP_FAMILY  = "ESP8266";
+#endif
+
 const uint8_t  ROTATION      = 0;          // 0..3 - change if screen is upside down
 const bool     INVERT_COLORS = true;       // most 1.54" IPS ST7789 panels need this
 const int      Y_SHIFT       = 6;          // nudge Ultra and Pro content up to center it
@@ -1018,10 +1026,18 @@ void handleWifiReset() {
   ESP.restart();
 }
 
-// Web UI: settings at "/", save at "/save", OTA firmware upload at "/update".
+void handleInfo() {
+  String json = String("{\"name\":\"Glance\",\"model\":\"") + DEVICE_MODEL +
+                "\",\"chip\":\"" + CHIP_FAMILY + "\",\"ip\":\"" +
+                WiFi.localIP().toString() + "\"}";
+  httpServer.send(200, "application/json", json);
+}
+
+// Web UI: settings at "/", device identity at "/info", OTA at "/update".
 void startWebServer() {
   httpUpdater.setup(&httpServer, "/update", OTA_USER, OTA_PASS);
   httpServer.on("/", handleRoot);
+  httpServer.on("/info", HTTP_GET, handleInfo);
   httpServer.on("/save", HTTP_POST, handleSave);
   httpServer.on("/wifi", HTTP_POST, handleWifiReset);
   httpServer.begin();
